@@ -1,0 +1,11 @@
+const char* ssid = "Hacklab";
+const char* password = "...";
+const char* hostname_template = "currentmonitor-%06x-...";
+const char* mqtt_server = "mqtt";
+const unsigned int mqtt_port = 1883;
+const char* mqtt_topic = "sensor/.../current";
+const bool ota_enabled = true;
+const char* ota_password = "...";
+const int read_interval = 10000;
+const float amps_per_volt = 100.0;
+const float fudge_factor = 1.11;
