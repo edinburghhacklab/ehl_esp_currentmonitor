@@ -25,6 +25,37 @@ void callback(const MQTT::Publish& pub)
   mqtt.publish("meta/mqtt-agents/reply", my_id);
 }
 
+double read_irms_current()
+{
+  const int sample_count = 1000;
+  static double offsetI = 0;
+  double Irms;
+  double sumI = 0;
+
+  for (unsigned int n = 0; n < sample_count; n++)
+  {
+    double sampleI;
+    double filteredI;
+    double sqI;
+
+    sampleI = analogRead(A0);
+
+    // Digital low pass filter extracts the 2.5 V or 1.65 V dc offset,
+    // then subtract this - signal is now centered on 0 counts.
+    offsetI = (offsetI + (sampleI-offsetI)/1024);
+    filteredI = sampleI - offsetI;
+
+    // Root-mean-square method current
+    // 1) square current values
+    sqI = filteredI * filteredI;
+    // 2) sum
+    sumI += sqI;
+  }
+
+  Irms = fudge_factor * amps_per_volt * sqrt(sumI / sample_count) / 1024;
+  return Irms;
+}
+
 float read_current()
 {
   const int reading_count = 70;
@@ -66,6 +97,12 @@ void setup()
   Serial.print(my_id);
   Serial.print(" ");
   Serial.println(ESP.getSketchMD5());
+
+  // run the ADC calculations a few times to stabilise the low-pass filter
+  for (int i; i<10; i++) {
+    read_irms_current();
+    yield();
+  }
 
   if (ota_enabled) {
     Serial.println("Enabling OTA updates");
@@ -138,7 +175,7 @@ void loop()
   if (last_read == 0 || millis() - last_read > read_interval) {
     last_read = millis();
     char mqtt_payload[MAX_PAYLOAD_LENGTH];
-    float current = read_current();
+    double current = read_irms_current();
     dtostrf(current, 0, 2, mqtt_payload);
     Serial.print(mqtt_topic);
     Serial.print(" ");
